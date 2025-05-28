@@ -1,7 +1,6 @@
-
 # JSANDB Documentation
 
-JSANDB is a lightweight, file-based database for JavaScript and TypeScript projects. This guide covers installation, setup, usage of models, database operations, and the CLI.
+JSANDB is a lightweight, file-based database for JavaScript and TypeScript projects. This guide covers installation, setup, usage of models, and file-based database operations.
 
 ---
 
@@ -15,94 +14,65 @@ npm install jsandb
 
 ## Setup
 
-Initialize JSANDB in your project:
-
 ```typescript
 import { JSANDB } from 'jsandb';
 
-const db = new JSANDB({
-    path: './data', // Directory to store database files
+const DB1 = await JSANDB.connect({
+    database: 'DB1',
+    username: 'admin',
+    password: 'JSANDB@123'
 });
 ```
 
 ---
 
-## Defining Models
+## Defining and Using Models
 
-Create models to structure your data:
+Create models and perform operations:
 
 ```typescript
-const User = db.model('User', {
-    name: String,
-    email: String,
-    age: Number,
+DB1.createModel({
+    name: 'user',
+    schema: {
+        name: String,
+        email: String,
+        age: Number,
+    }
 });
+
+// Insert a new user
+await DB1.user.insert({ name: 'Alice', email: 'alice@example.com', age: 25 });
+
+// Update user(s)
+await DB1.user.update({ name: 'Alice' }, { age: 26 });
+
+// Find user(s)
+const users = await DB1.user.find({ age: { $gte: 18 } });
+
+// Aggregate user data
+const stats = await DB1.user.aggregate({ groupBy: 'age' });
+
+// Filter user(s)
+const filtered = await DB1.user.filter({ email: /@example\.com$/ });
 ```
 
 ---
 
-## Database Operations
+## File-based Database Operations
 
-### Create
-
-```typescript
-const user = await User.create({ name: 'Alice', email: 'alice@example.com', age: 25 });
-```
-
-### Read
-
-```typescript
-const users = await User.find({ age: { $gte: 18 } });
-```
-
-### Update
-
-```typescript
-await User.update({ name: 'Alice' }, { age: 26 });
-```
-
-### Delete
-
-```typescript
-await User.delete({ name: 'Alice' });
-```
-
----
-
-## CLI Usage
-
-JSANDB provides a CLI for database management.
-
-### Initialize Database
-
-```bash
-npx jsandb init
-```
-
-### Run Migrations
-
-```bash
-npx jsandb migrate
-```
-
-### Seed Data
-
-```bash
-npx jsandb seed
-```
+JSANDB stores each model as a separate JSON file in the specified directory. All CRUD operations interact directly with these files.
 
 ---
 
 ## Configuration
 
-You can customize the database path and other options in the JSANDB constructor.
+You can customize the database name, username, password, and other options in the `JSANDB.connect` method. All data is stored as JSON files in the specified directory.
 
 ---
 
 ## Further Reading
 
 - [API Reference](./docs/api.md)
-- [CLI Commands](./docs/cli.md)
 - [Examples](./examples)
 
 ---
