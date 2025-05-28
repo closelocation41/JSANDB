@@ -1,0 +1,27 @@
+{
+  "name": "jsandb",
+  "version": "1.0.0",
+  "description": "JSANDB (JSON Sandeep Database) A JSON-based local database",
+  "main": "dist/index.js",
+  "scripts": {
+    "postinstall": "node scripts/setup.js"
+  },
+  "keywords": [],
+  "author": "sandeep",
+  "license": "ISC",
+  "dependencies": {
+    "commander": "^14.0.0",
+    "crypto": "^1.0.1",
+    "fs": "^0.0.1-security",
+    "jsonwebtoken": "^9.0.2",
+    "lodash": "^4.17.21",
+    "mingo": "^6.6.1",
+    "path": "^0.12.7",
+    "stream-json": "^1.9.1",
+    "typescript": "^5.8.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.23",
+    "@types/stream-json": "^1.7.8"
+  }
+}
