@@ -34,16 +34,21 @@ export async function connect({
     username,
     password,
 }: { database: string; username: string; password: string }): Promise<Database> {
+    // Check if database file exists
     if (!await databaseFileExists(database)) {
         throw new Error("Database file does not exist.");
     }
 
+    // Read users from user.json in the same directory as the database
     const userFile = path.resolve(path.dirname(database), "user.json");
     const users = await readUsers(userFile);
 
+    // Validate user credentials
     if (!validateUser(users, username, password)) {
         throw new Error("Invalid username or password.");
     }
 
-    return new Database(database);
+    // Open and return a new Database instance (mimicking database.js functionality)
+    const db = await Database.connect({ database, username, password }); // Use the public static method to create an instance
+    return db;
 }

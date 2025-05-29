@@ -197,8 +197,131 @@ export class Model<T> {
         return { data: results, total, page, pageSize };
     }
 
-     async getAll(): Promise<T[]> {
+    async getAll(): Promise<T[]> {
         const data = fs.readFileSync(this.filePath, "utf-8");
         return JSON.parse(data) as T[];
+    }
+
+    /** Find and update one record matching query */
+    async findOneAndUpdate(query: Partial<T>, update: Partial<T>): Promise<T | null> {
+        const mingoQuery = new mingo.Query(query);
+        const tempPath = join(tmpdir(), `model-findoneupdate-${Date.now()}.jsonl`);
+        const readStream = createReadStream(this.filePath);
+        const writeStream = createWriteStream(tempPath);
+
+        let updatedRecord: T | null = null;
+        let updated = false;
+        const rl = readline.createInterface({
+            input: readStream,
+            crlfDelay: Infinity,
+        });
+
+        for await (const line of rl) {
+            if (!line.trim()) continue;
+            let record = JSON.parse(line);
+            if (!updated && mingoQuery.test(record)) {
+                record = { ...record, ...update };
+                updatedRecord = record;
+                updated = true;
+            }
+            writeStream.write(JSON.stringify(record) + "\n");
+        }
+        writeStream.end();
+
+        await new Promise<void>((resolve) => writeStream.on("finish", () => resolve()));
+        await fsPromises.rename(tempPath, this.filePath);
+        return updatedRecord;
+    }
+
+    /** Find and delete one record matching query */
+    async findOneAndDelete(query: Partial<T>): Promise<T | null> {
+        const mingoQuery = new mingo.Query(query);
+        const tempPath = join(tmpdir(), `model-findonedelete-${Date.now()}.jsonl`);
+        const readStream = createReadStream(this.filePath);
+        const writeStream = createWriteStream(tempPath);
+
+        let deletedRecord: T | null = null;
+        let deleted = false;
+        const rl = readline.createInterface({
+            input: readStream,
+            crlfDelay: Infinity,
+        });
+
+        for await (const line of rl) {
+            if (!line.trim()) continue;
+            const record = JSON.parse(line);
+            if (!deleted && mingoQuery.test(record)) {
+                deletedRecord = record;
+                deleted = true;
+                continue;
+            }
+            writeStream.write(JSON.stringify(record) + "\n");
+        }
+        writeStream.end();
+
+        await new Promise<void>((resolve) => writeStream.on("finish", () => resolve()));
+        await fsPromises.rename(tempPath, this.filePath);
+        return deletedRecord;
+    }
+
+    /** Distinct values for a field */
+    async distinct<K extends keyof T>(field: K, query: Partial<T> = {}): Promise<T[K][]> {
+        const mingoQuery = new mingo.Query(query);
+        const values = new Set<T[K]>();
+
+        const rl = readline.createInterface({
+            input: createReadStream(this.filePath),
+            crlfDelay: Infinity,
+        });
+
+        for await (const line of rl) {
+            if (!line.trim()) continue;
+            const record = JSON.parse(line);
+            if (mingoQuery.test(record)) {
+                values.add(record[field]);
+            }
+        }
+        return Array.from(values);
+    }
+
+    /** Project fields (like MongoDB's projection) */
+    async project(query: Partial<T>, projection: Partial<Record<keyof T, 0 | 1>>): Promise<Partial<T>[]> {
+        const mingoQuery = new mingo.Query(query);
+        const results: Partial<T>[] = [];
+
+        const includeFields = Object.entries(projection)
+            .filter(([_, v]) => v === 1)
+            .map(([k]) => k);
+
+        const excludeFields = Object.entries(projection)
+            .filter(([_, v]) => v === 0)
+            .map(([k]) => k);
+
+        const rl = readline.createInterface({
+            input: createReadStream(this.filePath),
+            crlfDelay: Infinity,
+        });
+
+        for await (const line of rl) {
+            if (!line.trim()) continue;
+            const record = JSON.parse(line);
+            if (mingoQuery.test(record)) {
+                let projected: Partial<T> = {};
+                if (includeFields.length > 0) {
+                    for (const field of includeFields) {
+                        projected[field as keyof T] = record[field];
+                    }
+                } else if (excludeFields.length > 0) {
+                    projected = { ...record };
+                    for (const field of excludeFields) {
+                        delete projected[field as keyof T];
+                    }
+                } else {
+                    projected = record;
+                }
+                results.push(projected);
+            }
+        }
+        return results;
     }
 }
